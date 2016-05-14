@@ -105,7 +105,7 @@ class App {
                     files++;
                     printer.print(elem + "  ");
                     if(recursive)printer.println(f.getAbsolutePath());
-                    else f.getName();
+                    else printer.println(f.getName());
                 }
                 printer.flush();
             }
