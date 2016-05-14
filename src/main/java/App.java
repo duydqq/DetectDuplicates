@@ -14,6 +14,7 @@ class App {
     private static boolean help = false;
     private static boolean list = false;
     private static boolean benchmark = false;
+    private static boolean recursive = false;
 
     private static String startDirectory = ".";
 
@@ -36,23 +37,31 @@ class App {
                 case "-bench":
                     benchmark = true;
                     break;
+                case "-recursive":
+                    recursive = true;
+                    break;
                 default:
                     startDirectory = arg;
                     break;
             }
+        }
+        // auto + recursive = too dangerous
+        if(auto&&recursive){
+            System.out.print("Sorry, but auto + recursive mode is too dangerous. I can't let you do that.");
+            System.exit(0);
         }
         if (help) {
             printHelp();
             System.exit(0);
         }
         long beforeMD5 = System.currentTimeMillis();
-        Map<String, List<File>> map = getHashes(new File(startDirectory));
+        Map<String, List<File>> map = new HashMap<>();
+        getHashes(new File(startDirectory),map);
         long deltaMD5 = System.currentTimeMillis()-beforeMD5;
 
-        if (list) {
-            listHashes(map);
-        } else if (auto) deleteCollisions(map);
-        else listCollisions(map);
+        if (list)       listHashes(map);
+        else if (auto)  deleteCollisions(map);
+        else            listCollisions(map);
 
         long deltaTotal = System.currentTimeMillis()-beforeTotal;
         if(benchmark) printBenchmark(deltaMD5, deltaTotal);
@@ -94,8 +103,9 @@ class App {
             for (String elem : map.keySet()) {
                 for (File f : map.get(elem)) {
                     files++;
-                    printer.println(elem + "  " + f.getName());
-
+                    printer.print(elem + "  ");
+                    if(recursive)printer.println(f.getAbsolutePath());
+                    else f.getName();
                 }
                 printer.flush();
             }
@@ -137,7 +147,8 @@ class App {
                     collisions++;
                     printer.println("Duplicate " + collisions + " (" + HASH_ALGORITHM + "=" + elem + ")");
                     for (File f : map.get(elem)) {
-                        printer.println(f.getName());
+                        if(recursive)printer.println(f.getAbsolutePath());
+                        else printer.println(f.getName());
                     }
                     printer.println();
                     printer.flush();
@@ -165,21 +176,27 @@ class App {
                         "Usage: java -jar DetectDuplicates.jar [(optional) Path to a Directory] [OPTION]\n\n" +
                         "The first optional parameter is a directory path to check for identical files. \n" +
                         "If omitted, the directory of the jar-file will be checked.\n" +
-                        "Possible Options: \n" +
+                        "Possible Modes: \n" +
+                        "[default]             - checks for duplicates and lists them in "+LOGNAME+"\n"+
                         "-auto                 - automatically deletes duplicates\n"+
-                        "-list                 - lists the " + HASH_ALGORITHM + " hashes in file "+LISTNAME+" and exits\n"+
+                        "-list                 - lists the " + HASH_ALGORITHM + " hashes in "+LISTNAME+"\n"+
+                        "Options:\n"+
+                        "-recursive            - also processes sub-folders\n"+
                         "-bench                - prints some benchmark data after completion\n" +
+                        "Help:\n"+
                         "-help                 - prints this message and exits\n");
 
     }
 
-    private static Map<String, List<File>> getHashes(File directory) {
+    private static void getHashes(File directory, Map<String, List<File>> hashMap) {
 
-        Map<String, List<File>> hashMap = new HashMap<>();
 
         File[] files = directory.listFiles();
         for (File file : files) {
-            if (file.isDirectory()) continue;
+            if (file.isDirectory()){
+                if(recursive) getHashes(file, hashMap);
+                continue;
+            }
             if (file.getName().equals(LOGNAME))continue;
             if (file.getName().equals(LISTNAME))continue;
             bytesProcessed+=file.length();
@@ -194,7 +211,6 @@ class App {
                 hashMap.get(hash).add(file);
             }
         }
-        return hashMap;
     }
 
 }
