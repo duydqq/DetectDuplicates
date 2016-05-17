@@ -1,13 +1,13 @@
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.SynchronousQueue;
 
 
 class App {
 
-    private static final String LOGNAME = "duplicates.txt";
-    private static final String LISTNAME = "hashes.txt";
-    private static final String HASH_ALGORITHM = "MD5";
+    private static final String HASH_ALGORITHM = "SHA-1";
+    private static final String LOGNAME = HASH_ALGORITHM.toLowerCase()+"-duplicates.txt";
+    private static final String LISTNAME = HASH_ALGORITHM.toLowerCase()+"-hashes.txt";
+
     private static final int BUFFER_SIZE = 2048;
 
     private static boolean auto = false;
@@ -22,7 +22,6 @@ class App {
     private static long filesProcessed = 0;
 
     public static void main(String[] args) throws Exception {
-        long beforeTotal = System.currentTimeMillis();
         for (String arg : args) {
             switch (arg) {
                 case "-auto":
@@ -45,10 +44,14 @@ class App {
                     break;
             }
         }
+        File start = new File(startDirectory);
         // auto + recursive = too dangerous
         if(auto&&recursive){
-            System.out.print("Sorry, but auto + recursive mode is too dangerous. I can't let you do that.");
-            System.exit(0);
+            System.out.println("Auto+Recursive Mode is dangerous and could harm your system.");
+            System.out.println("Are you sure you want to check "+start.getAbsolutePath()+" ?");
+            System.out.print("(yes/no): ");
+            Scanner scanner = new Scanner(System.in);
+            if(!scanner.next().equalsIgnoreCase("yes"))System.exit(0);
         }
         if (help) {
             printHelp();
@@ -56,44 +59,25 @@ class App {
         }
         long beforeMD5 = System.currentTimeMillis();
         Map<String, List<File>> map = new HashMap<>();
-        getHashes(new File(startDirectory),map);
-        long deltaMD5 = System.currentTimeMillis()-beforeMD5;
+        getHashes(start,map);
+        long delta = System.currentTimeMillis()-beforeMD5;
 
         if (list)       listHashes(map);
         else if (auto)  deleteCollisions(map);
         else            listCollisions(map);
 
-        long deltaTotal = System.currentTimeMillis()-beforeTotal;
-        if(benchmark) printBenchmark(deltaMD5, deltaTotal);
+        if(benchmark) printBenchmark(delta);
     }
 
-    private static void printBenchmark(long deltaMD5, long deltaTotal) {
+    private static void printBenchmark(long delta) {
         System.out.println("Processed:");
-        System.out.println(HASH_ALGORITHM+"'s of "+formatSize(bytesProcessed)+" of Data in "+formatTime(deltaMD5)+". ("+round2decimal((bytesProcessed/1000000D)/(deltaMD5/1000D))+" MB/second)");
-        System.out.println(filesProcessed+" files in "+formatTime(deltaTotal)+" total.");
+        System.out.println(HASH_ALGORITHM+"'s of "+FormatUtils.formatSize(bytesProcessed)+" of Data in "+
+                FormatUtils.formatTime(delta)+". ("+FormatUtils.round2decimal((bytesProcessed/1000000D)/(delta/1000D),2)+
+                " MB/second)");
+        System.out.println(filesProcessed+" files in "+FormatUtils.formatTime(delta)+". ("+FormatUtils.round2decimal((filesProcessed/(delta/1000D)),2)+" Files/second)");
     }
 
-    private static double round2decimal(double in){
-        return (double)Math.round(in*100D)/100D;
-    }
-    //http://stackoverflow.com/a/3758880
-    private static String formatSize(long bytes){
-        int unit = 1024;
-        if (bytes < unit) return bytes + " B";
-        int exp = (int) (Math.log(bytes) / Math.log(unit));
-        String pre = "KMGTPE".charAt(exp-1)+"";
-        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
-    }
 
-    private static String formatTime(long milliseconds){
-        if(milliseconds<1000)
-            return milliseconds+" milliseconds";
-        if(milliseconds<(60*1000))
-            return milliseconds/1000+" seconds";
-        if(milliseconds<(60*1000*60))
-            return milliseconds/(60*1000)+" minutes";
-        return milliseconds/(60*60*1000)+" hours";
-    }
     private static void listHashes(Map<String, List<File>> map) {
         try {
             int files = 0;
@@ -119,7 +103,6 @@ class App {
         }
 
     }
-
     private static void deleteCollisions(Map<String, List<File>> map) {
         int collisions = 0;
         for (String elem : map.keySet()) {
@@ -193,16 +176,24 @@ class App {
 
         File[] files = directory.listFiles();
         for (File file : files) {
+
             if (file.isDirectory()){
                 if(recursive) getHashes(file, hashMap);
                 continue;
             }
             if (file.getName().equals(LOGNAME))continue;
             if (file.getName().equals(LISTNAME))continue;
+
+            String hash;
+            try{
+                hash = HashUtils.fileToHash(file, HASH_ALGORITHM, BUFFER_SIZE);
+            } catch (IOException e){
+                System.out.println("Could not compute file "+file.getAbsolutePath()+". (IOException, Access Denied)");
+                continue;
+            }
             bytesProcessed+=file.length();
             filesProcessed++;
 
-            String hash = HashUtils.fileToHash(file, HASH_ALGORITHM, BUFFER_SIZE);
             if (!hashMap.containsKey(hash)) {
                 List<File> list = new ArrayList<>();
                 list.add(file);
@@ -211,6 +202,7 @@ class App {
                 hashMap.get(hash).add(file);
             }
         }
+
     }
 
 }
