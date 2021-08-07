@@ -10,7 +10,7 @@ class App {
 
     private static final int BUFFER_SIZE = 2048;
 
-    private static boolean auto = false;
+    private static boolean delete = false;
     private static boolean help = false;
     private static boolean list = false;
     private static boolean benchmark = false;
@@ -21,22 +21,27 @@ class App {
     private static long bytesProcessed = 0;
     private static long filesProcessed = 0;
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         for (String arg : args) {
             switch (arg) {
-                case "-auto":
-                    auto = true;
+                case "--delete":
+                case "-d":
+                    delete = true;
                     break;
-                case "-help":
+                case "--help":
+                case "-h":
                     help = true;
                     break;
-                case "-list":
+                case "--list":
+                case "-l":
                     list = true;
                     break;
-                case "-bench":
+                case "--bench":
+                case "-b":
                     benchmark = true;
                     break;
-                case "-recursive":
+                case "--recursive":
+                case "-r":
                     recursive = true;
                     break;
                 default:
@@ -45,25 +50,28 @@ class App {
             }
         }
         File start = new File(startDirectory);
+
+        if (help) {
+            printHelp();
+            System.exit(0);
+        }
+
         // auto + recursive = too dangerous
-        if(auto&&recursive){
-            System.out.println("Auto+Recursive Mode is dangerous and could harm your system.");
+        if(delete &&recursive){
+            System.out.println("Delete+Recursive Mode is dangerous and could harm your system.");
             System.out.println("Are you sure you want to check "+start.getAbsolutePath()+" ?");
             System.out.print("(yes/no): ");
             Scanner scanner = new Scanner(System.in);
             if(!scanner.next().equalsIgnoreCase("yes"))System.exit(0);
         }
-        if (help) {
-            printHelp();
-            System.exit(0);
-        }
-        long beforeMD5 = System.currentTimeMillis();
+
+        long beforeHashing = System.currentTimeMillis();
         Map<String, List<File>> map = new HashMap<>();
         getHashes(start,map);
-        long delta = System.currentTimeMillis()-beforeMD5;
+        long delta = System.currentTimeMillis()-beforeHashing;
 
         if (list)       listHashes(map);
-        else if (auto)  deleteCollisions(map);
+        else if (delete)  deleteCollisions(map);
         else            listCollisions(map);
 
         if(benchmark) printBenchmark(delta);
@@ -96,24 +104,25 @@ class App {
             printer.close();
             System.out.println("Done. Wrote "+files+" "+HASH_ALGORITHM+"'s into File "+LISTNAME);
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
             e.printStackTrace();
         }
 
     }
     private static void deleteCollisions(Map<String, List<File>> map) {
-        int collisions = 0;
+        int deletions = 0;
+        int failed = 0;
         for (String elem : map.keySet()) {
             List<File> files = map.get(elem);
             if (files.size() > 1)
                 for (int i = 1; i < files.size(); i++) {
-                    collisions++;
-                    files.get(i).delete();
+                    if(files.get(i).delete())failed++;
+                    else deletions++;
                 }
         }
-        System.out.println("Done. " + collisions + " files were deleted.");
+        System.out.print("Done. " + deletions + " files were deleted.");
+        if(failed > 0) System.out.println(failed + " files failed to be deleted.");
+        else System.out.println();
     }
 
     private static void listCollisions(Map<String, List<File>> map) {
@@ -143,9 +152,7 @@ class App {
                 System.out.println("Check file " + LOGNAME + " for details.");
             }
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
             e.printStackTrace();
         }
 
@@ -161,18 +168,17 @@ class App {
                         "If omitted, the directory of the jar-file will be checked.\n" +
                         "Possible Modes: \n" +
                         "[default]             - checks for duplicates and lists them in "+LOGNAME+"\n"+
-                        "-auto                 - automatically deletes duplicates\n"+
-                        "-list                 - lists the " + HASH_ALGORITHM + " hashes in "+LISTNAME+"\n"+
+                        "--delete | -d         - deletes duplicates\n"+
+                        "--list | -l           - lists the " + HASH_ALGORITHM + " hashes in "+LISTNAME+"\n"+
                         "Options:\n"+
-                        "-recursive            - also processes sub-folders\n"+
-                        "-bench                - prints some benchmark data after completion\n" +
+                        "--recursive | -r      - also processes sub-folders\n"+
+                        "--bench | -b          - prints some benchmark data after completion\n" +
                         "Help:\n"+
-                        "-help                 - prints this message and exits\n");
+                        "--help                - prints this message and exits\n");
 
     }
 
     private static void getHashes(File directory, Map<String, List<File>> hashMap) {
-
 
         File[] files = directory.listFiles();
         for (File file : files) {
