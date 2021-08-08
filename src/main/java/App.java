@@ -116,8 +116,8 @@ class App {
             List<File> files = map.get(elem);
             if (files.size() > 1)
                 for (int i = 1; i < files.size(); i++) {
-                    if(files.get(i).delete())failed++;
-                    else deletions++;
+                    if(files.get(i).delete())deletions++;
+                    else failed++;
                 }
         }
         System.out.print("Done. " + deletions + " files were deleted.");
