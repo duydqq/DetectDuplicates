@@ -7,4 +7,4 @@ hashsums. If wanted, duplicate files can be deleted.
 Maven and JDK 8 are needed. ```mvn install```
 
 ## Running
-JRE 8
+JRE 8 is needed. Run the jar with `-h` to get instructions.
