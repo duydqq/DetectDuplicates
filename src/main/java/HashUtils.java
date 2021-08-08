@@ -6,16 +6,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 
-class HashUtils {
+class HashUtils
+{
 
-    static String fileToHash(File file, String algorithm, int bufferSize) throws IOException {
+    static String fileToHash( File file, String algorithm, int bufferSize ) throws IOException
+    {
         try {
-        MessageDigest md = null;
+            MessageDigest md = null;
 
             md = MessageDigest.getInstance(algorithm);
 
-
-        InputStream is = new FileInputStream(file);
+            InputStream is = new FileInputStream(file);
             byte[] buffer = new byte[bufferSize];
             int nread;
 
@@ -28,14 +29,15 @@ class HashUtils {
             StringBuilder sb = new StringBuilder();
 
             for (byte aByte : bytes) {
-                sb.append(Integer.toString((aByte & 0xFF) + 256, 16).substring(1));
+                sb.append(Integer.toString((aByte&0xFF) + 256, 16).substring(1));
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            System.err.println("Error: The algorithm '"+algorithm+"' does not exist.");
+            System.err.println("Error: The algorithm '" + algorithm + "' does not exist.");
             e.printStackTrace();
             System.exit(1);
         }
         return null;
     }
+
 }
