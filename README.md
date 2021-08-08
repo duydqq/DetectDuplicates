@@ -26,7 +26,7 @@ Options:
 --recursive | -r      - also processes sub-folders
 --bench | -b          - prints some benchmark data after completion
 Help:
---help                - prints this message and exits
+--help | -h           - prints this message and exits
 
 
 ```
